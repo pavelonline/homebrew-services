@@ -1,10 +1,9 @@
+# typed: true
 # frozen_string_literal: true
 
 module Service
   module Commands
     module Restart
-      module_function
-
       # NOTE: The restart command is used to update service files
       # after a package gets updated through `brew upgrade`.
       # This works by removing the old file with `brew services stop`
@@ -12,7 +11,7 @@ module Service
 
       TRIGGERS = %w[restart relaunch reload r].freeze
 
-      def run(targets, verbose:)
+      def self.run(targets, verbose:)
         return unless ServicesCli.check(targets)
 
         ran = []

@@ -1,12 +1,11 @@
+# typed: true
 # frozen_string_literal: true
 
 module Service
   module Formulae
-    module_function
-
     # All available services, with optional filters applied
     # @private
-    def available_services(loaded: nil, skip_root: false)
+    def self.available_services(loaded: nil, skip_root: false)
       require "formula"
 
       formulae = Formula.installed
@@ -21,7 +20,7 @@ module Service
     end
 
     # List all available services with status, user, and path to the file.
-    def services_list
+    def self.services_list
       available_services.map(&:to_hash)
     end
   end

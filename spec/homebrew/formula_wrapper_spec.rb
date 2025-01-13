@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ostruct"
 require "spec_helper"
 require "tempfile"
 
@@ -112,6 +113,7 @@ describe Service::FormulaWrapper do
 
     it "systemD - outputs if the service is loaded" do
       allow(Service::System).to receive_messages(launchctl?: false, systemctl?: true)
+      allow(Service::System::Systemctl).to receive(:quiet_run).and_return(false)
       allow(Utils).to receive(:safe_popen_read)
       expect(service.loaded?).to be(false)
     end
@@ -137,7 +139,7 @@ describe Service::FormulaWrapper do
 
     it "false if opt_prefix missing" do
       allow(service).to receive_messages(installed?:   true,
-                                         service_file: Pathname.new("/dev/null"),
+                                         service_file: Pathname.new(File::NULL),
                                          formula:      OpenStruct.new(plist:      nil,
                                                                       opt_prefix: Pathname.new("/dfslkfhjdsolshlk")))
       expect(service.plist?).to be(false)

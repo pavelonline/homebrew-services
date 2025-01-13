@@ -1,10 +1,18 @@
+# typed: strict
 # frozen_string_literal: true
 
-if !Process.euid.zero? && Version.new(HOMEBREW_VERSION) < Version.new("4.2.15")
+homebrew_version = if HOMEBREW_VERSION.present?
+  HOMEBREW_VERSION.delete_prefix(">=")
+                  .delete_suffix(" (shallow or no git repository)")
+else
+  "0.0.1"
+end
+if !Process.euid.zero? && Version.new(homebrew_version) < Version.new("4.2.15")
   odie "Your Homebrew is too outdated for `brew services`. Please run `brew update`!"
 end
 
 require "abstract_command"
+require "service"
 
 module Homebrew
   module Cmd
@@ -16,8 +24,8 @@ module Homebrew
           Manage background services with macOS' `launchctl`(1) daemon manager or
           Linux's `systemctl`(1) service manager.
 
-          If `sudo` is passed, operate on `/Library/LaunchDaemons`/`/usr/lib/systemd/system`  (started at boot).
-          Otherwise, operate on `~/Library/LaunchAgents`/`~/.config/systemd/user` (started at login).
+          If `sudo` is passed, operate on `/Library/LaunchDaemons` or `/usr/lib/systemd/system`  (started at boot).
+          Otherwise, operate on `~/Library/LaunchAgents` or `~/.config/systemd/user` (started at login).
 
           [`sudo`] `brew services` [`list`] (`--json`) (`--debug`):
           List information about all managed services for the current user (or root).
@@ -46,12 +54,16 @@ module Homebrew
         EOS
         flag "--file=", description: "Use the service file from this location to `start` the service."
         flag "--sudo-service-user=", description: "When run as root on macOS, run the service(s) as this user."
+        flag "--max-wait=", description: "Wait at most this many seconds for `stop` to finish stopping a service. " \
+                                         "Omit this flag or set this to zero (0) seconds to wait indefinitely."
         switch "--all", description: "Run <subcommand> on all services."
         switch "--json", description: "Output as JSON."
         switch "--no-wait", description: "Don't wait for `stop` to finish stopping the service."
+        conflicts "--max-wait=", "--no-wait"
         named_args max: 2
       end
 
+      sig { override.void }
       def run
         # pbpaste's exit status is a proxy for detecting the use of reattach-to-user-namespace
         if ENV["HOMEBREW_TMUX"] && (File.exist?("/usr/bin/pbpaste") && !quiet_system("/usr/bin/pbpaste"))
@@ -138,7 +150,8 @@ module Homebrew
         when *::Service::Commands::Start::TRIGGERS
           ::Service::Commands::Start.run(targets, args.file, verbose: args.verbose?)
         when *::Service::Commands::Stop::TRIGGERS
-          ::Service::Commands::Stop.run(targets, verbose: args.verbose?, no_wait: args.no_wait?)
+          max_wait = args.max_wait.to_f
+          ::Service::Commands::Stop.run(targets, verbose: args.verbose?, no_wait: args.no_wait?, max_wait:)
         when *::Service::Commands::Kill::TRIGGERS
           ::Service::Commands::Kill.run(targets, verbose: args.verbose?)
         else

@@ -1,3 +1,4 @@
+# typed: true
 # frozen_string_literal: true
 
 # Wrapper for a formula to handle service-related stuff like parsing and
@@ -12,7 +13,7 @@ module Service
       return unless path_or_label =~ path_or_label_regex
 
       begin
-        new(Formulary.factory(Regexp.last_match(1)))
+        new(Formulary.factory(T.must(Regexp.last_match(1))))
       rescue
         nil
       end
@@ -104,7 +105,7 @@ module Service
         _, status_success, = status_output_success_type
         status_success
       elsif System.systemctl?
-        quiet_system(*System.systemctl_args, "status", service_file.basename)
+        System::Systemctl.quiet_run("status", service_file.basename)
       end
     end
 
@@ -222,10 +223,10 @@ module Service
           [output, success, :launchctl_print]
         end
       elsif System.systemctl?
-        cmd = [*System.systemctl_args, "status", service_name]
-        output = Utils.popen_read(*cmd).chomp
+        cmd = ["status", service_name]
+        output = System::Systemctl.popen_read(*cmd).chomp
         success = $CHILD_STATUS.present? && $CHILD_STATUS.success? && output.present?
-        odebug cmd.join(" "), output
+        odebug [System::Systemctl.executable, System::Systemctl.scope, *cmd].join(" "), output
         [output, success, :systemctl]
       end
     end
